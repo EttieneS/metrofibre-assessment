@@ -3,6 +3,7 @@ AGENTS.md
 output.md
 task*-findings.md
 assessment.pdf
+*.md
 design-reference.png
 
 # Dependencies and generated frontend output
