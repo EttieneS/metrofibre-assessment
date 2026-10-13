@@ -1,51 +1,156 @@
 MetroFibre Assessment - Installation
 ====================================
 
-Prerequisites
--------------
+This document describes a portable Apache deployment. Laragon is optional and
+is covered separately below. The application must be served by Apache from the
+compiled Angular files; do not use ng serve for a hosted installation.
 
-* Laragon with Apache and the local Laragon certificate.
-* PHP 5.5.38 at C:\laragon\bin\php\php-5.5.38.
-* Node.js/npm compatible with Angular CLI 16.
+Requirements
+------------
 
-Backend
--------
+* PHP 5.5.38 is required for the backend and its tests. Ensure the PHP used by
+  Apache is also PHP 5.5.38. Check the command-line version with:
 
-Run the PHP 5.5 lint and unit/reference suite:
+      php -v
 
-    cd backend
-    C:\laragon\bin\php\php-5.5.38\php.exe tests\run.php
+* Angular 16 supports Node.js ^16.14.0 or ^18.10.0. Node.js 18 LTS (18.10.0 or
+  later in the 18.x line) is recommended. npm is supplied with Node.js.
+* Apache 2.4 with mod_rewrite enabled and configured to execute PHP 5.5.38.
+* Git and a Chrome/Chromium installation for the Angular headless test suite.
 
-The test suite checks the default result (12 people, five combinations), zero inventory, validation, shared inventory constraints, and an independent bounded enumeration.
+No Composer installation is required for this project.
 
-Frontend
---------
+Project layout
+--------------
+
+    backend/                 PHP REST API and tests
+    backend/public/          Apache document root
+    backend/public/app/      Generated Angular production build (not committed)
+    frontend/                Angular 16 application
+
+The Angular production build writes directly to backend/public/app. Build the
+frontend before opening the site through Apache.
+
+Portable installation (without Laragon)
+----------------------------------------
+
+1. Clone the repository and enter its root directory:
+
+       git clone https://github.com/EttieneS/metrofibre-assessment.git
+       cd metrofibre-assessment
+
+2. Confirm that PHP 5.5.38 is the PHP executable on PATH, then run the backend
+   test suite from the repository root:
+
+       php backend/tests/run.php
+
+   On Windows, use the full path to the PHP 5.5.38 executable if it is not on
+   PATH. Do not use a newer system PHP merely because it is the default PHP.
+
+3. Install the locked frontend dependencies and build the production files:
+
+       cd frontend
+       npm ci
+       npm run build
+
+   The build output is created at ../backend/public/app. Return to the project
+   root before running backend commands again.
+
+4. Configure an Apache virtual host. The following is an example only; replace
+   the ServerName, certificate settings and absolute filesystem path with those
+   used on the target machine. The important document root is backend/public.
+
+       <VirtualHost *:80>
+           ServerName metrofibre.local
+           DocumentRoot "/absolute/path/to/metrofibre-assessment/backend/public"
+
+           <Directory "/absolute/path/to/metrofibre-assessment/backend/public">
+               Options FollowSymLinks
+               AllowOverride All
+               Require all granted
+           </Directory>
+       </VirtualHost>
+
+   For Windows, an equivalent example path is
+   "C:/work/metrofibre-assessment/backend/public". It is only an example, not
+   a required installation location. Configure the appropriate PHP 5.5.38
+   Apache module, FastCGI, or PHP-FPM handler for the server being used.
+
+5. Add metrofibre.local to the local hosts file if using the example ServerName,
+   restart Apache, and open http://metrofibre.local/. For HTTPS, add the server's
+   normal certificate and a :443 virtual host with the same DocumentRoot; HTTPS
+   is not tied to Laragon.
+
+Apache rewrite requirements
+---------------------------
+
+mod_rewrite must be enabled. On Debian/Ubuntu, this is normally:
+
+    a2enmod rewrite
+
+On Windows Apache installations, ensure the rewrite_module LoadModule entry is
+enabled. The virtual host must allow the repository's backend/public/.htaccess
+file by using AllowOverride All (or by placing equivalent rules in the virtual
+host configuration). The supplied rules do all of the following:
+
+* route POST /api/optimise to the PHP front controller;
+* serve the compiled Angular application from /app/; and
+* send frontend routes to the Angular shell so browser refresh works.
+
+If .htaccess files are disabled by server policy, use these equivalent rewrite
+rules in the applicable Apache directory or virtual-host context, adapting paths
+to that context:
+
+    RewriteEngine On
+    RewriteRule ^api(?:/.*)?$ index.php [QSA,L]
+    RewriteRule ^app/?$ app/index.html [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ app/index.html [QSA,L]
+
+Tests and production build
+--------------------------
+
+Run these commands from the indicated directories:
+
+    php backend/tests/run.php
 
     cd frontend
     npm ci
+    npm test -- --watch=false --browsers=ChromeHeadlessCI
     npm run build
 
-The production build is emitted to `backend/public/app` so the existing Apache document root can serve it. Do not use `ng serve` for the hosted application.
+The PHP suite covers the optimiser and API validation. The Angular suite uses
+the ChromeHeadlessCI launcher configured in frontend/karma.conf.js. The build
+must finish before Apache can serve the updated frontend.
 
-Hosting and HTTPS
------------------
+API request
+-----------
 
-The existing Laragon vhost is `metrofibre-assessment.test`. It uses the Laragon certificate and PHP 5.5.38 through `fcgid`. Start Apache, run the production build, then open:
+With Apache running, send a JSON POST request to /api/optimise. This curl
+example uses the default inventory and an example HTTP host:
 
-    https://metrofibre-assessment.test/
+    curl -X POST http://metrofibre.local/api/optimise -H "Content-Type: application/json" -d "{\"ingredients\":{\"cucumber\":2,\"olives\":2,\"lettuce\":3,\"meat\":6,\"tomato\":6,\"cheese\":8,\"dough\":10}}"
 
-HTTP redirects to HTTPS. `backend/public/.htaccess` routes `/api/optimise` to `index.php` and routes frontend requests to the compiled Angular shell. Other Laragon projects and their PHP versions are not changed.
+For the default inventory, a successful HTTP 200 JSON response contains
+success: true, data.people: 12, and five entries in data.combinations. Use the
+HTTPS host and local certificate options appropriate to the target environment
+when HTTPS is configured.
 
-API smoke test
---------------
+Optional Windows Laragon setup
+------------------------------
 
-Use the default inventory with `POST /api/optimise` and `Content-Type: application/json`. The HTTPS endpoint must return HTTP 200, `data.people: 12`, and five combinations. A Node.js smoke command that accepts the local certificate is:
+Laragon is one supported local-development option, not a requirement. Configure
+the MetroFibre Apache virtual host to use this project's backend/public folder
+as its document root and PHP 5.5.38 through its normal FastCGI configuration.
+Do not change PHP versions for other Laragon projects.
 
-    node -e "process.env.NODE_TLS_REJECT_UNAUTHORIZED='0'; fetch('https://metrofibre-assessment.test/api/optimise',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ingredients:{cucumber:2,olives:2,lettuce:3,meat:6,tomato:6,cheese:8,dough:10}})}).then(async r=>console.log(r.status,await r.text()))"
+On a typical Laragon installation, the PHP 5.5.38 test command may be:
 
-Angular unit tests can be run with:
+    C:\laragon\bin\php\php-5.5.38\php.exe backend\tests\run.php
 
-    cd frontend
-    npm test -- --watch=false --browsers=ChromeHeadlessCI
-
-`ChromeHeadlessCI` is configured in `frontend/karma.conf.js` with standard CI flags and an isolated profile. Generated frontend output, dependencies, local certificates, and internal reports are excluded from Git.
+That path is an example of Laragon's default installation layout. If Laragon is
+installed elsewhere, use the corresponding PHP 5.5.38 executable. Build the
+frontend with the commands above, start Apache, then use the configured local
+HTTP or HTTPS virtual-host URL. Laragon's local certificate can be used for the
+HTTPS virtual host, but it is not required by the application itself.
