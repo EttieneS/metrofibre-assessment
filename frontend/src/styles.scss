@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap');
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background-color: #fff8ed;
+  background-image: linear-gradient(rgba(255, 248, 237, .45), rgba(255, 248, 237, .45)), url('assets/metrofibre_reference_background.png');
+  background-attachment: fixed;
+  background-position: center;
+  background-size: cover;
+  color: #102a33;
+  font-family: 'DM Sans', Arial, sans-serif;
+  overflow-x: hidden;
+}
+button, input { font-family: inherit; }

@@ -1,0 +1,51 @@
+MetroFibre Assessment - Installation
+====================================
+
+Prerequisites
+-------------
+
+* Laragon with Apache and the local Laragon certificate.
+* PHP 5.5.38 at C:\laragon\bin\php\php-5.5.38.
+* Node.js/npm compatible with Angular CLI 16.
+
+Backend
+-------
+
+Run the PHP 5.5 lint and unit/reference suite:
+
+    cd backend
+    C:\laragon\bin\php\php-5.5.38\php.exe tests\run.php
+
+The test suite checks the default result (12 people, five combinations), zero inventory, validation, shared inventory constraints, and an independent bounded enumeration.
+
+Frontend
+--------
+
+    cd frontend
+    npm ci
+    npm run build
+
+The production build is emitted to `backend/public/app` so the existing Apache document root can serve it. Do not use `ng serve` for the hosted application.
+
+Hosting and HTTPS
+-----------------
+
+The existing Laragon vhost is `metrofibre-assessment.test`. It uses the Laragon certificate and PHP 5.5.38 through `fcgid`. Start Apache, run the production build, then open:
+
+    https://metrofibre-assessment.test/
+
+HTTP redirects to HTTPS. `backend/public/.htaccess` routes `/api/optimise` to `index.php` and routes frontend requests to the compiled Angular shell. Other Laragon projects and their PHP versions are not changed.
+
+API smoke test
+--------------
+
+Use the default inventory with `POST /api/optimise` and `Content-Type: application/json`. The HTTPS endpoint must return HTTP 200, `data.people: 12`, and five combinations. A Node.js smoke command that accepts the local certificate is:
+
+    node -e "process.env.NODE_TLS_REJECT_UNAUTHORIZED='0'; fetch('https://metrofibre-assessment.test/api/optimise',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ingredients:{cucumber:2,olives:2,lettuce:3,meat:6,tomato:6,cheese:8,dough:10}})}).then(async r=>console.log(r.status,await r.text()))"
+
+Angular unit tests can be run with:
+
+    cd frontend
+    npm test -- --watch=false --browsers=ChromeHeadlessCI
+
+`ChromeHeadlessCI` is configured in `frontend/karma.conf.js` with standard CI flags and an isolated profile. Generated frontend output, dependencies, local certificates, and internal reports are excluded from Git.

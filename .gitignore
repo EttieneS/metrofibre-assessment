@@ -1,0 +1,40 @@
+# Internal instructions and handoff material
+AGENTS.md
+output.md
+task*-findings.md
+assessment.pdf
+design-reference.png
+
+# Dependencies and generated frontend output
+frontend/node_modules/
+frontend/dist/
+backend/public/app/
+frontend/.angular/
+frontend/coverage/
+frontend/.cache/
+
+# Runtime/build output
+*.log
+*.tmp
+*.temp
+backend/coverage/
+backend/cache/
+backend/tmp/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.*
+secrets.*
+
+# IDE and OS files
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db

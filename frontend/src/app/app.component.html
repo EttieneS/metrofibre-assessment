@@ -1,0 +1,46 @@
+<mat-toolbar class="topbar">
+  <div class="brand-logo-wrap"><img class="brand-logo" src="assets/metrofibre-official-logo.webp" alt="MetroFibre"></div>
+  <div class="brand-copy"><p class="eyebrow">MetroFibre kitchen</p><h1>Recipe optimiser</h1></div>
+  <div class="toolbar-message"><span aria-hidden="true">🍴</span><span>Make the most<br>of your ingredients</span></div>
+</mat-toolbar>
+
+<main class="page-shell">
+  <section class="dashboard-intro">
+    <div class="intro-copy"><p class="eyebrow accent">Inventory planning</p><h2>Plan the best use<br class="desktop-break"> of your ingredients</h2><p class="intro">Adjust the inventory, then compare every recipe combination that feeds the maximum number of people.</p></div>
+    <aside class="hero-stat" aria-live="polite" aria-label="Maximum people fed"><img class="people-icon" src="assets/metrofibre-logo-mark.svg" alt=""><span class="stat-number" [class.stat-instruction]="peopleFedState === 'idle'">{{ peopleFedDisplay }}</span><span class="stat-label">{{ peopleFedLabel }}</span></aside>
+  </section>
+
+  <form #inventoryForm="ngForm" (ngSubmit)="submit(inventoryForm)" novalidate>
+    <mat-card class="inventory-card">
+      <div class="section-heading"><div class="heading-with-icon"><span class="heading-icon" aria-hidden="true">🌿</span><div><p class="eyebrow">Step 01</p><h3>Available ingredients</h3></div></div><button mat-button class="reset-button" type="button" (click)="reset()"><span aria-hidden="true">↻</span> Reset defaults</button></div>
+      <div class="ingredient-grid">
+        <mat-form-field appearance="outline" *ngFor="let ingredient of optimisation.ingredients; trackBy: trackByName">
+          <mat-label><span aria-hidden="true">{{ ingredient === 'cucumber' ? '🥒' : ingredient === 'olives' ? '🫒' : ingredient === 'lettuce' ? '🌿' : ingredient === 'meat' ? '🥩' : ingredient === 'tomato' ? '🍅' : ingredient === 'cheese' ? '🧀' : '🥖' }}</span> {{ title(ingredient) }}</mat-label>
+          <input matInput type="number" min="0" step="1" required [name]="ingredient" [(ngModel)]="inventory[ingredient]" (ngModelChange)="inventoryChanged()" />
+          <mat-hint>units</mat-hint>
+        </mat-form-field>
+      </div>
+      <div class="form-footer"><p class="validation" *ngIf="error" role="alert">{{ error }}</p><button mat-raised-button class="optimise-button" type="submit" [disabled]="loading"><mat-spinner *ngIf="loading" diameter="18" aria-label="Optimising"></mat-spinner><span *ngIf="!loading" aria-hidden="true">▶</span>{{ loading ? 'Optimising…' : 'Optimise recipes' }}</button></div>
+    </mat-card>
+  </form>
+
+  <section class="recipe-section">
+    <div class="section-heading"><div class="heading-with-icon"><span class="heading-icon cutlery" aria-hidden="true">🍴</span><div><p class="eyebrow">Reference</p><h3>Recipes &amp; requirements</h3></div></div><span class="muted">{{ optimisation.recipes.length }} recipes</span></div>
+    <mat-card class="table-card"><table mat-table [dataSource]="optimisation.recipes" class="recipe-table">
+      <ng-container matColumnDef="recipe"><th mat-header-cell *matHeaderCellDef>Recipe</th><td mat-cell *matCellDef="let recipe"><strong><span class="recipe-emoji" aria-hidden="true">{{ recipe.name === 'burger' ? '🍔' : recipe.name === 'pie' ? '🥧' : recipe.name === 'sandwich' ? '🥪' : recipe.name === 'pasta' ? '🍝' : recipe.name === 'salad' ? '🥗' : '🍕' }}</span>{{ title(recipe.name) }}</strong></td></ng-container>
+      <ng-container matColumnDef="feeds"><th mat-header-cell *matHeaderCellDef>Feeds</th><td mat-cell *matCellDef="let recipe">{{ recipe.feeds }}</td></ng-container>
+      <ng-container matColumnDef="ingredients"><th mat-header-cell *matHeaderCellDef>Ingredient requirements</th><td mat-cell *matCellDef="let recipe">{{ ingredientSummary(recipe.ingredients) }}</td></ng-container>
+      <tr mat-header-row *matHeaderRowDef="['recipe', 'feeds', 'ingredients']"></tr><tr mat-row *matRowDef="let row; columns: ['recipe', 'feeds', 'ingredients'];"></tr>
+    </table></mat-card>
+  </section>
+
+  <section class="results" *ngIf="hasResults">
+    <div class="section-heading"><div class="heading-with-icon"><span class="heading-icon" aria-hidden="true">✨</span><div><p class="eyebrow accent">Step 02</p><h3>Optimal combinations</h3></div></div><span class="success-pill">{{ result!.combinations.length }} found</span></div>
+    <div class="combination-tabs" role="tablist" aria-label="Optimal combinations"><button mat-stroked-button *ngFor="let combination of result!.combinations; let i = index" type="button" [class.active]="selectedCombination === i" (click)="selectedCombination = i" role="tab" [attr.aria-selected]="selectedCombination === i">Option {{ i + 1 }}</button></div>
+    <mat-card class="result-card" *ngIf="selected as combination"><div class="result-summary"><strong>{{ combinationLabel(combination) }}</strong><span>Feeds {{ result!.people }} people</span></div>
+      <div class="result-columns"><div><h4>Recipe quantities</h4><div class="quantity-list"><div *ngFor="let recipe of optimisation.recipes"><span>{{ title(recipe.name) }}</span><strong>{{ combination.recipes[recipe.name] }}</strong></div></div></div>
+      <div><h4>Ingredient balance</h4><table mat-table [dataSource]="optimisation.ingredients" class="balance-table"><ng-container matColumnDef="ingredient"><th mat-header-cell *matHeaderCellDef>Ingredient</th><td mat-cell *matCellDef="let ingredient">{{ title(ingredient) }}</td></ng-container><ng-container matColumnDef="balance"><th mat-header-cell *matHeaderCellDef>Consumption &amp; remaining</th><td mat-cell *matCellDef="let ingredient"><span class="balance-value"><span class="balance-used">{{ combination.used[ingredient] }} used</span><span class="balance-remaining">{{ combination.remaining[ingredient] }} left</span></span></td></ng-container><tr mat-header-row *matHeaderRowDef="['ingredient','balance']"></tr><tr mat-row *matRowDef="let row; columns: ['ingredient','balance'];"></tr></table></div></div>
+    </mat-card>
+  </section>
+  <p class="loading-note" *ngIf="loading" aria-live="polite">Finding the best ways to use your ingredients…</p>
+</main>
